@@ -3,18 +3,18 @@
 #include <vector>
 
 #define STB_IMAGE_IMPLEMENTATION
-#include "../deps/stb_image.h"
+#include "stb_image.h"
 
-#include "imgui.h"
-#include "imgui_impl_glut.h"
-#include "imgui_impl_opengl2.h"
-#define GL_SILENCE_DEPRECATION
-#ifdef __APPLE__
-#include <GLUT/glut.h>
-#else
-#include <GL/freeglut.h>
-#endif
-#include "imgui.h"
+#include <imgui.h>
+// #include "imgui_impl_glut.h"
+// #include "imgui_impl_opengl2.h"
+// #define GL_SILENCE_DEPRECATION
+// #ifdef __APPLE__
+// #include <GLUT/glut.h>
+// #else
+// #include <GL/freeglut.h>
+// #endif
+// #include "imgui.h"
 
 #include "utils.cpp"
 
