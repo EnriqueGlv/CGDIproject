@@ -3,7 +3,7 @@
 To install:
 
 ```
-git clone https://github.com/EnriqueGlv/CGDIproject
+git clone https://github.com/EnriqueGlv/CGDIproject --recurse-submodules
 mkdir build
 cd build
 cmake ..
