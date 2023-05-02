@@ -17,6 +17,8 @@ public:
     int getCarvedWidth() const;
     int getCarvedHeight() const;
 
+    bool useBackwardSearch;
+
     bool saveEnergyToFile(const std::string& filename);
     bool saveCarvedImageToFile(const std::string& filename) const;
 
@@ -28,7 +30,8 @@ private:
 
     // Helper functions for seam carving algorithm
     std::vector<std::vector<double>> computeEnergy() const;
-    std::vector<std::vector<int>> findSeam(const std::vector<std::vector<double>>& energy) const;
+    std::vector<std::vector<int>> findForwardSeam(const std::vector<std::vector<double>>& energy) const;
+    std::vector<std::vector<int>> findBackwardSeam(const std::vector<std::vector<double>>& energy) const;
     void removeSeam(const std::vector<std::vector<int>>& seam);
 };
 

@@ -15,10 +15,6 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "../libs/stb_image.h"
 
-// This example can also compile and run with Emscripten! See 'Makefile.emscripten' for details.
-#ifdef __EMSCRIPTEN__
-#include "../libs/emscripten/emscripten_mainloop_stub.h"
-#endif
 #include "seamCarving.h"
 
 
@@ -57,6 +53,29 @@ bool LoadTextureFromFile(const char* filename, GLuint* out_texture, int* out_wid
     *out_texture = image_texture;
     *out_width = image_width;
     *out_height = image_height;
+
+    return true;
+}
+
+bool LoadTexture(const unsigned char* image_data, GLuint* out_texture, int image_width, int image_height) {
+    // Create a OpenGL texture identifier
+    GLuint image_texture;
+    glGenTextures(1, &image_texture);
+    glBindTexture(GL_TEXTURE_2D, image_texture);
+
+    // Setup filtering parameters for display
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // This is required on WebGL for non power-of-two textures
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); // Same
+
+    // Upload pixels into texture
+#if defined(GL_UNPACK_ROW_LENGTH) && !defined(__EMSCRIPTEN__)
+    glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+#endif
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image_width, image_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image_data);
+
+    *out_texture = image_texture;
 
     return true;
 }
@@ -107,7 +126,7 @@ int main(int, char**) {
             WINDOW_SIZE_X, 
             WINDOW_SIZE_Y, 
             SDL_WINDOW_OPENGL | 
-            //SDL_WINDOW_RESIZABLE | 
+            SDL_WINDOW_RESIZABLE | 
             SDL_WINDOW_HIDDEN
             );
     if (window == nullptr)
@@ -136,10 +155,11 @@ int main(int, char**) {
     ImGui_ImplOpenGL3_Init(glsl_version);
 
 
-    ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
     // Main loop
     bool done = false;
+    bool showEnergy = false;
+    bool currentlyShowingEnergy = false;
     int toCarve = 0;
     int currentlyCarved = -1;
     int my_image_width = 0;
@@ -179,26 +199,56 @@ int main(int, char**) {
                 nullptr,
                 ImGuiWindowFlags_NoTitleBar |
                 ImGuiWindowFlags_NoResize |
-                ImGuiWindowFlags_NoMove
-                );
+                ImGuiWindowFlags_NoInputs |
+                ImGuiWindowFlags_NoMove);
         
+        // Apply padding to the image
+        const float padding = 20.0f;
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(padding, padding));
         ImGui::Image((void*)(intptr_t)my_image_texture, ImVec2(my_image_width, my_image_height));
+        ImGui::PopStyleVar(); 
 
         ImGui::End();
 
         // Config window
         ImGui::SetNextWindowSize({SETTING_WINDOW_SIZE_X, SETTING_WINDOW_SIZE_Y});
         ImGui::Begin("Config");
+
+        // Apply padding to the config elements
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(padding, padding));
+
+        ImGui::Text("Image Controls");
+        
+        ImGui::Spacing(); 
+        ImGui::Separator();
+        ImGui::Spacing(); 
+
         ImGui::SliderInt("Number of columns to carve", &toCarve, 0, sc.getCarvedWidth() - 1);
-    
-        if (toCarve != currentlyCarved) {
+        ImGui::Spacing(); 
+
+        ImGui::Checkbox("Show energy", &showEnergy);
+        
+        ImGui::Spacing(); 
+
+        ImGui::Checkbox("Use backward seam search", &sc.useBackwardSearch);
+
+        ImGui::PopStyleVar(); 
+        
+
+        if (toCarve != currentlyCarved or showEnergy != currentlyShowingEnergy) {
             sc.carve(toCarve);
-            // sc.saveEnergyToFile("../images/energy.png");
-            sc.saveCarvedImageToFile("../images/out.png");
-            // load Image
-            bool ret = LoadTextureFromFile("../images/out.png", &my_image_texture, &my_image_width, &my_image_height);
-            IM_ASSERT(ret);
+            if (showEnergy) {
+                sc.saveEnergyToFile("../images/energy.png");
+                bool ret = LoadTextureFromFile("../images/energy.png", &my_image_texture, &my_image_width, &my_image_height);
+                IM_ASSERT(ret);
+            }
+            else {
+                sc.saveCarvedImageToFile("../images/out.png");
+                bool ret = LoadTextureFromFile("../images/out.png", &my_image_texture, &my_image_width, &my_image_height);
+                IM_ASSERT(ret);
+            }
             currentlyCarved = toCarve;
+            currentlyShowingEnergy = showEnergy;
             sc = SeamCarving("../images/castle_orig.png");
         }
         ImGui::End();
@@ -206,14 +256,12 @@ int main(int, char**) {
         // Rendering
         ImGui::Render();
         glViewport(0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y);
+        ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
         glClearColor(clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w);
         glClear(GL_COLOR_BUFFER_BIT);
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         SDL_GL_SwapWindow(window);
     }
-#ifdef __EMSCRIPTEN__
-    EMSCRIPTEN_MAINLOOP_END;
-#endif
 
     // Cleanup
     ImGui_ImplOpenGL3_Shutdown();
