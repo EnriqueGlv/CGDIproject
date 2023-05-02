@@ -35,15 +35,33 @@ void SeamCarving::carve(int num_seams) {
     }
 }
 
+bool SeamCarving::saveEnergyToFile(const std::string& filename) {
+	auto energy_map = computeEnergy();
+
+	unsigned char* energy = (unsigned char*) malloc(m_width*m_height*4*sizeof(unsigned char));
+
+	for (int y = 0; y < m_height; ++y)
+	for (int x = 0; x < m_width; ++x){
+        int idx = (y * m_width + x) * 4;
+		energy[idx+0] = energy_map[y][x];
+		energy[idx+1] = energy_map[y][x];
+		energy[idx+2] = energy_map[y][x];
+		energy[idx+3] = m_data[idx+3];
+	}
+
+    return stbi_write_png(filename.c_str(), m_width, m_height, 4, energy, m_width * 4);
+}
+
 vector<vector<double>> SeamCarving::computeEnergy() const {
     vector<vector<double>> energy(m_height, vector<double>(m_width, 0.0));
 
     // Compute energy for each pixel
-    for (int y = 1; y < m_height - 1; ++y) {
-        for (int x = 1; x < m_width - 1; ++x) {
+    for (int y = 0; y < m_height; ++y) {
+        for (int x = 0; x < m_width; ++x) {
             int idx = (y * m_width + x) * 4;
 
             double dx = 0.0;
+            if(x > 0 && x < m_width-1)
             for (int c = 0; c < 3; ++c) {
                 int idx_px_right = idx + 4 + c;
                 int idx_px_left = idx - 4 + c;
@@ -53,6 +71,7 @@ vector<vector<double>> SeamCarving::computeEnergy() const {
             }
 
             double dy = 0.0;
+            if(y > 0 && y < m_height-1)
             for (int c = 0; c < 3; ++c) {
                 int idx_px_up = (idx - (m_width * 4)) + c;
                 int idx_px_down = (idx + (m_width * 4)) + c;
@@ -100,11 +119,14 @@ vector<vector<int>> SeamCarving::findSeam(const vector<vector<double>>& energy) 
     double min_path_cost = std::numeric_limits<double>::max();
     int seam_end_x = -1;
     for (int x = 0; x < m_width; ++x) {
-        if (dp[m_height - 1][x] < min_path_cost) {
+    	// cout << dp[m_height - 1][x] << endl;
+    	if (dp[m_height - 1][x] < min_path_cost) {
             min_path_cost = dp[m_height - 1][x];
             seam_end_x = x;
         }
     }
+
+    // cout << seam_end_x << endl;
 
     vector<vector<int>> seam(m_height, vector<int>(2, 0));
 
@@ -114,6 +136,12 @@ vector<vector<int>> SeamCarving::findSeam(const vector<vector<double>>& energy) 
         seam[y][1] = x;
         x = dp_idx[y][x];
     }
+
+    // for(auto ss : seam){
+    // 	for(int sss : ss)
+    // 		cout << sss << " ";
+	//     cout << endl;
+    // }
 
     return seam;
 }

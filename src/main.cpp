@@ -193,6 +193,7 @@ int main(int, char**) {
     
         if (toCarve != currentlyCarved) {
             sc.carve(toCarve);
+            // sc.saveEnergyToFile("../images/energy.png");
             sc.saveCarvedImageToFile("../images/out.png");
             // load Image
             bool ret = LoadTextureFromFile("../images/out.png", &my_image_texture, &my_image_width, &my_image_height);

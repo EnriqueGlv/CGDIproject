@@ -17,6 +17,7 @@ public:
     int getCarvedWidth() const;
     int getCarvedHeight() const;
 
+    bool saveEnergyToFile(const std::string& filename);
     bool saveCarvedImageToFile(const std::string& filename) const;
 
 private:
