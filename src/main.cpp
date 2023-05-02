@@ -19,6 +19,13 @@
 #ifdef __EMSCRIPTEN__
 #include "../libs/emscripten/emscripten_mainloop_stub.h"
 #endif
+#include "seamCarving.h"
+
+
+#define WINDOW_SIZE_X 1000
+#define WINDOW_SIZE_Y 800
+#define SETTING_WINDOW_SIZE_X 400
+#define SETTING_WINDOW_SIZE_Y 200
 
 // Simple helper function to load an image into a OpenGL texture with common settings
 bool LoadTextureFromFile(const char* filename, GLuint* out_texture, int* out_width, int* out_height) {
@@ -53,7 +60,6 @@ bool LoadTextureFromFile(const char* filename, GLuint* out_texture, int* out_wid
 
     return true;
 }
-
 // Main code
 int main(int, char**) {
     // Setup SDL
@@ -96,8 +102,14 @@ int main(int, char**) {
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
     SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
-    SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIDDEN);
-    SDL_Window* window = SDL_CreateWindow("Dear ImGui SDL3+OpenGL3 example", 1280, 720, window_flags);
+    SDL_Window* window = SDL_CreateWindow(
+            "Sim carving", 
+            WINDOW_SIZE_X, 
+            WINDOW_SIZE_Y, 
+            SDL_WINDOW_OPENGL | 
+            //SDL_WINDOW_RESIZABLE | 
+            SDL_WINDOW_HIDDEN
+            );
     if (window == nullptr)
     {
         printf("Error: SDL_CreateWindow(): %s\n", SDL_GetError());
@@ -123,17 +135,18 @@ int main(int, char**) {
     ImGui_ImplSDL3_InitForOpenGL(window, gl_context);
     ImGui_ImplOpenGL3_Init(glsl_version);
 
-    // load Image
-    int my_image_width = 0;
-    int my_image_height = 0;
-    GLuint my_image_texture = 0;
-    bool ret = LoadTextureFromFile("../images/castle_orig.png", &my_image_texture, &my_image_width, &my_image_height);
-    IM_ASSERT(ret);
 
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
     // Main loop
     bool done = false;
+    int toCarve = 0;
+    int currentlyCarved = -1;
+    int my_image_width = 0;
+    int my_image_height = 0;
+    GLuint my_image_texture = 0;
+    auto sc = SeamCarving("../images/castle_orig.png");
+
 #ifdef __EMSCRIPTEN__
     io.IniFilename = nullptr;
     EMSCRIPTEN_MAINLOOP_BEGIN
@@ -157,9 +170,36 @@ int main(int, char**) {
         ImGui_ImplSDL3_NewFrame();
         ImGui::NewFrame();
 
-        ImGui::SetNextWindowSize({600, 400});
-        ImGui::Begin("OpenGL Texture Text");
+
+        // Background window
+        ImGui::SetNextWindowSize({WINDOW_SIZE_X, WINDOW_SIZE_Y});
+        ImGui::SetNextWindowPos({0.0f, 0.0f});
+        ImGui::Begin(
+                "Background window", 
+                nullptr,
+                ImGuiWindowFlags_NoTitleBar |
+                ImGuiWindowFlags_NoResize |
+                ImGuiWindowFlags_NoMove
+                );
+        
         ImGui::Image((void*)(intptr_t)my_image_texture, ImVec2(my_image_width, my_image_height));
+
+        ImGui::End();
+
+        // Config window
+        ImGui::SetNextWindowSize({SETTING_WINDOW_SIZE_X, SETTING_WINDOW_SIZE_Y});
+        ImGui::Begin("Config");
+        ImGui::SliderInt("Number of columns to carve", &toCarve, 0, sc.getCarvedWidth() - 1);
+    
+        if (toCarve != currentlyCarved) {
+            sc.carve(toCarve);
+            sc.saveCarvedImageToFile("../images/out.png");
+            // load Image
+            bool ret = LoadTextureFromFile("../images/out.png", &my_image_texture, &my_image_width, &my_image_height);
+            IM_ASSERT(ret);
+            currentlyCarved = toCarve;
+            sc = SeamCarving("../images/castle_orig.png");
+        }
         ImGui::End();
 
         // Rendering

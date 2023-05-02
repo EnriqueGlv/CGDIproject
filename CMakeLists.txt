@@ -46,6 +46,10 @@ set(CMAKE_SOURCE_DIR "src")
 set(CMAKE_BINARY_DIR "bin")
 
 add_executable(example)
-target_sources(example PUBLIC ${CMAKE_SOURCE_DIR}/main.cpp)
+target_sources(example 
+                PUBLIC 
+                    ${CMAKE_SOURCE_DIR}/main.cpp
+                    ${CMAKE_SOURCE_DIR}/seamCarving.cpp
+                )
 target_link_libraries(example IMGUI)
 set_target_properties(example PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
