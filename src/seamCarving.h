@@ -28,10 +28,12 @@ private:
     int m_width;
     int m_height;
 
+    std::vector<std::vector<double>> energy;
+
     // Helper functions for seam carving algorithm
-    std::vector<std::vector<double>> computeEnergy() const;
-    std::vector<std::vector<int>> findForwardSeam(const std::vector<std::vector<double>>& energy) const;
-    std::vector<std::vector<int>> findBackwardSeam(const std::vector<std::vector<double>>& energy) const;
+    void computeEnergy();
+    std::vector<std::vector<int>> findForwardSeam() const;
+    std::vector<std::vector<int>> findBackwardSeam() const;
     void removeSeam(const std::vector<std::vector<int>>& seam);
 };
 

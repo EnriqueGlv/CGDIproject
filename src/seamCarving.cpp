@@ -30,41 +30,42 @@ int SeamCarving::getCarvedHeight() const {
 
 void SeamCarving::carve(int num_seams) {
     for (int i = 0; i < num_seams; ++i) {
-        auto energy_map = computeEnergy();
+        computeEnergy();
         if (useBackwardSearch) {
-            auto seam = findBackwardSeam(energy_map);
+            auto seam = findBackwardSeam();
             removeSeam(seam);
-        }
-        else {
-            auto seam = findForwardSeam(energy_map);
+
+        } else {
+            auto seam = findForwardSeam();
             removeSeam(seam);
         }
     }
 }
 
 bool SeamCarving::saveEnergyToFile(const std::string& filename) {
-    auto energy_map = computeEnergy();
+    if(!energy.size())
+    	computeEnergy();
 
     size_t dataSize = m_width * m_height * 4;
-    std::vector<unsigned char> energy(dataSize);
+    std::vector<unsigned char> energy_img(dataSize);
 
     for (int y = 0; y < m_height; ++y) {
         for (int x = 0; x < m_width; ++x) {
             int idx = (y * m_width + x) * 4;
-            unsigned char energyValue = energy_map[y][x];
+            unsigned char energyValue = energy[y][x];
             
-            energy[idx]     = energyValue;
-            energy[idx + 1] = energyValue;
-            energy[idx + 2] = energyValue;
-            energy[idx + 3] = m_data[idx + 3];
+            energy_img[idx]     = energyValue;
+            energy_img[idx + 1] = energyValue;
+            energy_img[idx + 2] = energyValue;
+            energy_img[idx + 3] = m_data[idx + 3];
         }
     }
 
-    return stbi_write_png(filename.c_str(), m_width, m_height, 4, energy.data(), m_width * 4);
+    return stbi_write_png(filename.c_str(), m_width, m_height, 4, energy_img.data(), m_width * 4);
 }
 
-vector<vector<double>> SeamCarving::computeEnergy() const {
-    vector<vector<double>> energy(m_height, vector<double>(m_width, 0.0));
+void SeamCarving::computeEnergy(){
+    this->energy = vector<vector<double>>(m_height, vector<double>(m_width, 0.0));
 
     // Compute energy for each pixel
     for (int y = 0; y < m_height; ++y) {
@@ -95,10 +96,10 @@ vector<vector<double>> SeamCarving::computeEnergy() const {
         }
     }
 
-    return energy;
+    // this->energy = energy;
 }
 
-vector<vector<int>> SeamCarving::findForwardSeam(const vector<vector<double>>& energy) const {
+vector<vector<int>> SeamCarving::findForwardSeam() const {
     vector<vector<double>> dp(m_height, vector<double>(m_width, 0.0));
     vector<vector<int>> dp_idx(m_height, vector<int>(m_width, -1));
 
@@ -130,14 +131,11 @@ vector<vector<int>> SeamCarving::findForwardSeam(const vector<vector<double>>& e
     double min_path_cost = std::numeric_limits<double>::max();
     int seam_end_x = -1;
     for (int x = 0; x < m_width; ++x) {
-    	// cout << dp[m_height - 1][x] << endl;
     	if (dp[m_height - 1][x] < min_path_cost) {
             min_path_cost = dp[m_height - 1][x];
             seam_end_x = x;
         }
     }
-
-    // cout << seam_end_x << endl;
 
     vector<vector<int>> seam(m_height, vector<int>(2, 0));
 
@@ -148,16 +146,10 @@ vector<vector<int>> SeamCarving::findForwardSeam(const vector<vector<double>>& e
         x = dp_idx[y][x];
     }
 
-    // for(auto ss : seam){
-    // 	for(int sss : ss)
-    // 		cout << sss << " ";
-	//     cout << endl;
-    // }
-
     return seam;
 }
 
-vector<vector<int>> SeamCarving::findBackwardSeam(const vector<vector<double>>& energy) const {
+vector<vector<int>> SeamCarving::findBackwardSeam() const {
     cerr << "Not implemented" << endl;
 }
 
