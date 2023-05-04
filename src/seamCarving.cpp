@@ -73,8 +73,8 @@ double SeamCarving::getPixelEnergy(pixListIter it, pixListIter up, pixListIter d
 
     double dx;
     auto g = it, d = it;
-    if(it != pixels[it->y].begin() && ++g != pixels[it->y].end()){
-    	d--;
+    if(it != pixels[it->y].begin() && ++d != pixels[it->y].end()){
+    	g--;
     	double rdiff = g->rVal - d->rVal;
     	double gdiff = g->gVal - d->gVal;
     	double bdiff = g->bVal - d->bVal;
@@ -114,8 +114,44 @@ void SeamCarving::computeEnergy(){
         }
     }
 
-    // TODO: compute energies using getPixelEnergy or the old way
+    // compute energies using getPixelEnergy
+    for (int y = 0; y < m_height; ++y){
+    	pixListIter up, down; 
+    	if(y > 0) up = pixels[y-1].begin();
+    	if(y < m_height - 1) down = pixels[y+1].begin();
 
+    	for(auto it = pixels[y].begin(); it != pixels[y].end(); ++it){
+    		it->energy = getPixelEnergy(it, up, down);
+
+    		if(y > 0) ++up;
+			if(y < m_height - 1) ++down;    		
+    	}
+    }
+}
+
+// compute pix->dp and pix->next given the pixel just above pix
+void SeamCarving::computeDp(int y, pixListIter pix, pixListIter up){
+	pix->next = pixListIter(last);
+    pix->dp = last->dp + pix->energy;
+
+    if(last != pixels[y-1].begin()){
+    	last--;
+    	double new_val = last->dp + pix->energy;
+    	if(new_val < pix->dp){
+    		pix->dp   = new_val;
+    		pix->next = pixListIter(last);
+    	}
+    	last++;
+    }
+
+    last++;
+    if(last != pixels[y-1].end()){
+    	double new_val = last->dp + pix->energy;
+    	if(new_val < pix->dp){
+    		pix->dp   = new_val;
+    		pix->next = pixListIter(last);
+    	}
+    }
 }
 
 void SeamCarving::computeForwardPaths(){
@@ -132,37 +168,18 @@ void SeamCarving::computeForwardPaths(){
     	pixListIter last = pixels[y-1].begin();
 
     	for (auto pix = pixels[y].begin(); pix != pixels[y].end(); ++pix){
-            pix->next = pixListIter(last);
-            pix->dp = last->dp + pix->energy;
-
-            if(last != pixels[y-1].begin()){
-            	last--;
-            	double new_val = last->dp + pix->energy;
-            	if(new_val < pix->dp){
-            		pix->dp   = new_val;
-            		pix->next = pixListIter(last);
-            	}
-            	last++;
-            }
-
-            last++;
-            if(last != pixels[y-1].end()){
-            	double new_val = last->dp + pix->energy;
-            	if(new_val < pix->dp){
-            		pix->dp   = new_val;
-            		pix->next = pixListIter(last);
-            	}
-            }
-
+            computeDp(y, pix, pixListIter(last));
+    		++last;
         }
     }
 }
 
 vector<pixListIter> SeamCarving::findForwardSeam(){
     
-    if(!pixels.size())
-    	computeForwardPaths();
+    // if(!pixels.size())
+    // 	computeForwardPaths();
 
+    // find seam in O(w) -> because no need to recompute paths
     double min_path_cost = std::numeric_limits<double>::max();
     auto seam_end = pixels[m_height-1].begin();
     for (auto it = pixels[m_height-1].begin(); it != pixels[m_height-1].end(); ++it) {
@@ -205,16 +222,49 @@ vector<vector<int>> SeamCarving::findBackwardSeam() const {
 void SeamCarving::removeSeam(const std::vector<pixListIter>& seam){
 
     // remove seam in O(h)
+    for (int y = 0; y < m_height; ++y){
+    	// keeps the right neighbor of the removed seam in seam vector
+    	seam[y] = pixels[y].erase(seam[y]);
+    }
+
+    // update pixels neighbours to the removed seam
     for (int y = 0; y < m_height; ++y) {
 
     	auto pix = seam[y];
-    	int x = pix->x;
 
-    	// TODO: update energy using getPixelEnergy();
+    	// update energy using getPixelEnergy();
+    	pixListIter up, down;
+    	if(y > 0) up = seam[y-1];
+    	if(y < m_height-1) down = seam[y+1];
 
-    	// TODO: update dp values
+    	if(pix != pixels[y].end()){
+    		if(up == pixels[y-1].end()) up--;
+    		if(down == pixels[y+1].end()) down--;
+	    	pix->energy = getPixelEnergy(pix, up, down);
+    	}
 
-        auto act = pixels[y].erase(seam[y]);
+		if(pix != pixels[y].begin()){
+			if(y > 0 && up != pixels[y-1].begin()) --up;
+    		if(y < m_height-1 && down != pixels[y+1].begin()) --down;
+    		--pix;
+    		pix->energy = getPixelEnergy(pix, up, down);    	
+		}
+
+    	// update dp values
+    	if(y > 0){
+			if(up == pixels[y-1].end()) --up;
+
+			if(pix != pixels[y].end()){
+				if(pix->x < up->pix);
+				computeDp(y, pix, up);
+			}
+
+			if(pix != pixels[y].begin()){
+				--pix;
+				computeDp(y, pix, up);
+			}
+    	}
+        
     }
 
     // should be executed only in graphical mode
@@ -280,11 +330,19 @@ bool SeamCarving::saveCarvedImageToFile(const std::string& filename) const {
 
 /*
 LEFT TO DO:
-- first energy computation using getPixelEnergy (or previous method if easiest...)
-- energy update using getPixelEnergy 
-- dp update in a similar way to getPixelEnergy
+
+- energy update /!\ don't use pix->x !!! (in getPixelEnergy) 
+it becomes irrelevant after 2 iterations of the algo
+	-> memorize the location of next seam pixel (left, same x, right) instead
+
+- dp update /!\ same thing !!!
+
 - clean image saving
-- re-implement non-optimized algorithm (with a button to choose non-optimized algo)
+
+- re-implement non-optimized algorithm (with a button to choose optim/non-optimized algo)
+	(hope we see the diff)
+
 - take time measures to compare perfs (exclude image loading parts from measure)
+
 - report
 */
