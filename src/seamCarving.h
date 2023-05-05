@@ -4,37 +4,48 @@
 #include <vector>
 #include <string>
 #include <cmath>
+#include <list>
 #include <limits>
 #include <algorithm>
 
+#include "settings.h"
+
+using namespace std;
+
+struct Pixel {
+    unsigned char r, g, b, a;
+};
+
 class SeamCarving {
 public:
-    SeamCarving(const std::string& filename);
+    SeamCarving(const std::string& filename, Settings s);
     // Run seam carving for the desired number of seams.
     void carve(int num_seams);
 
-    const unsigned char* getCarvedData() const;
+    vector<list<Pixel>> getCarvedData() const;
     int getCarvedWidth() const;
     int getCarvedHeight() const;
 
-    bool useBackwardSearch;
+    Settings settings;
+
+    Pixel getPixel(int x, int y) const;
 
     bool saveEnergyToFile(const std::string& filename);
     bool saveCarvedImageToFile(const std::string& filename) const;
 
 private:
-    //std::vector<unsigned char> m_data;
-    unsigned char* m_data;
+    vector<list<Pixel>> m_data;
+    //unsigned char* m_data;
     int m_width;
     int m_height;
 
-    std::vector<std::vector<double>> energy;
+    vector<list<double>> energy;
 
     // Helper functions for seam carving algorithm
     void computeEnergy();
-    std::vector<std::vector<int>> findForwardSeam() const;
-    std::vector<std::vector<int>> findBackwardSeam() const;
-    void removeSeam(const std::vector<std::vector<int>>& seam);
+    vector<vector<int>> findForwardSeam() const;
+    vector<vector<int>> findBackwardSeam() const;
+    void removeSeam(const vector<vector<int>>& seam);
 };
 
 #endif // SEAMCARVING_H

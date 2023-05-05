@@ -16,7 +16,7 @@
 #include "../libs/stb_image.h"
 
 #include "seamCarving.h"
-
+#include "settings.h"
 
 #define WINDOW_SIZE_X 1000
 #define WINDOW_SIZE_Y 800
@@ -158,21 +158,21 @@ int main(int, char**) {
 
     // Main loop
     bool done = false;
-    bool showEnergy = false;
-    bool currentlyShowingEnergy = false;
-    int toCarve = 0;
-    int currentlyCarved = -1;
     int my_image_width = 0;
     int my_image_height = 0;
     GLuint my_image_texture = 0;
-    auto sc = SeamCarving("../images/castle_orig.png");
 
-#ifdef __EMSCRIPTEN__
-    io.IniFilename = nullptr;
-    EMSCRIPTEN_MAINLOOP_BEGIN
-#else
+    Settings settings;
+    settings.doBackwardSearch = true;
+    settings.showEnergy = false;
+    settings.seamsToRemove = 0;
+    auto sc = SeamCarving("../images/castle_orig.png", settings);
+        
+    Settings newSettings = settings;
+    newSettings.seamsToRemove = 1;
+
+
     while (!done)
-#endif
     {
         // Poll and handle events (inputs, window resize, etc.)
         SDL_Event event;
@@ -211,10 +211,11 @@ int main(int, char**) {
         ImGui::End();
 
         // Config window
+        
+
         ImGui::SetNextWindowSize({SETTING_WINDOW_SIZE_X, SETTING_WINDOW_SIZE_Y});
         ImGui::Begin("Config");
 
-        // Apply padding to the config elements
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(padding, padding));
 
         ImGui::Text("Image Controls");
@@ -223,21 +224,21 @@ int main(int, char**) {
         ImGui::Separator();
         ImGui::Spacing(); 
 
-        ImGui::SliderInt("Number of columns to carve", &toCarve, 0, sc.getCarvedWidth() - 1);
+        ImGui::SliderInt("Number of columns to carve", &newSettings.seamsToRemove, 0, sc.getCarvedWidth() - 1);
         ImGui::Spacing(); 
 
-        ImGui::Checkbox("Show energy", &showEnergy);
+        ImGui::Checkbox("Show energy", &newSettings.showEnergy);
         
         ImGui::Spacing(); 
 
-        ImGui::Checkbox("Use backward seam search", &sc.useBackwardSearch);
+        ImGui::Checkbox("Use backward seam search", &newSettings.doBackwardSearch);
 
         ImGui::PopStyleVar(); 
         
 
-        if (toCarve != currentlyCarved or showEnergy != currentlyShowingEnergy) {
-            sc.carve(toCarve);
-            if (showEnergy) {
+        if (!sc.settings.isEqual(newSettings)) {
+            sc.carve(newSettings.seamsToRemove);
+            if (newSettings.showEnergy) {
                 sc.saveEnergyToFile("../images/energy.png");
                 bool ret = LoadTextureFromFile("../images/energy.png", &my_image_texture, &my_image_width, &my_image_height);
                 IM_ASSERT(ret);
@@ -247,9 +248,7 @@ int main(int, char**) {
                 bool ret = LoadTextureFromFile("../images/out.png", &my_image_texture, &my_image_width, &my_image_height);
                 IM_ASSERT(ret);
             }
-            currentlyCarved = toCarve;
-            currentlyShowingEnergy = showEnergy;
-            sc = SeamCarving("../images/castle_orig.png");
+            sc = SeamCarving("../images/castle_orig.png", newSettings);
         }
         ImGui::End();
 
